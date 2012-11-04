@@ -1,0 +1,78 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>org.jenkins-ci.plugins</groupId>
+    <artifactId>plugin</artifactId>
+    <version>1.466</version><!-- which version of Jenkins is this plugin built against? -->
+  </parent>
+
+  <groupId>org.jenkins-ci.plugins</groupId>
+  <artifactId>ovirt</artifactId>
+  <version>1.0-SNAPSHOT</version>
+  <packaging>hpi</packaging>
+  <name>Jenkins oVirt Engine plugin</name>
+  <description>Plugin allows to define oVirt cloud in order to provision Slaves on demand.</description>
+
+  <!-- get every artifact through repo.jenkins-ci.org, which proxies all the artifacts that we need -->
+  <repositories>
+    <repository>
+      <id>repo.jenkins-ci.org</id>
+      <url>http://repo.jenkins-ci.org/public/</url>
+    </repository>
+  </repositories>
+
+  <pluginRepositories>
+    <pluginRepository>
+      <id>repo.jenkins-ci.org</id>
+      <url>http://repo.jenkins-ci.org/public/</url>
+  </pluginRepository>
+    <pluginRepository>
+      <id>central</id>
+      <name>Maven Plugin Repository</name>
+      <url>http://repo1.maven.org/maven2</url>
+      <layout>default</layout>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+  </pluginRepository>
+    <pluginRepository>
+      <id>gwt-plugin-repo</id>
+      <url>http://google-web-toolkit.googlecode.com/svn/2.1.0.M3/gwt/maven</url>
+      <name>Google Web Toolkit Plugin Repository</name>
+    </pluginRepository>
+</pluginRepositories>
+<build>
+    <plugins>
+        <plugin>
+        <groupId>org.jvnet.jaxb2.maven2</groupId>
+        <artifactId>maven-jaxb22-plugin</artifactId>
+        <version>0.8.2</version>
+
+        <executions>
+          <execution>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+          </execution>
+        </executions>
+
+        <configuration>
+          <generatePackage>org.ovirt.engine.api.model</generatePackage>
+          <extension>true</extension>
+        </configuration>
+      </plugin>
+
+    </plugins>
+  </build>
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.maven.wagon</groupId>
+            <artifactId>wagon-http</artifactId>
+            <version>2.2</version>
+            <type>jar</type>
+        </dependency>
+    </dependencies>
+</project>

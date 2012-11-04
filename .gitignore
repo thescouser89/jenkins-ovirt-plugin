@@ -1,6 +1,13 @@
 *.class
 
+*.patch
+
 # Package Files #
 *.jar
 *.war
 *.ear
+*.hpi
+target/
+.classpath
+.project
+.settings

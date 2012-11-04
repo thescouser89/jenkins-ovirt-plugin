@@ -1,0 +1,19 @@
+
+Slaves Templates
+----------------
+ - ID oe_<template_name>
+ - run them as stateless
+ - define template for empty label
+
+
+Label-based requirements
+-------------
+example: (RHEL5 || RHEL6) && ram_2G
+ - RHEL[56] static label
+ - ram_2G requiring label
+
+
+PROBLEMS:
+ - need to import certificate manually
+ - need to think how rebuid ovirt.model on demand
+

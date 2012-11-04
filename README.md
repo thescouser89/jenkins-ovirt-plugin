@@ -1,2 +1,2 @@
-jenkins-rhev-plugin
-===================
+jenkins-ovirt-plugin
+====================

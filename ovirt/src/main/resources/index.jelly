@@ -1,0 +1,7 @@
+<!--
+  This view is used to render the installed plugins page.
+-->
+<div>
+  This plugin provides integration with oVirt engine.
+  It creates virtual machines on demand, and attachs them to Jenkins.
+</div>
