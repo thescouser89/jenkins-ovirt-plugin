@@ -2,18 +2,25 @@ package org.jenkinsci.plugins;
 
 import hudson.Extension;
 import hudson.model.Descriptor;
+import hudson.model.Hudson;
 import hudson.model.Label;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
-import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
 import java.util.logging.Level;
-import javax.xml.bind.JAXBException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerResponse;
+import org.ovirt.engine.api.model.API;
+import org.ovirt.engine.api.model.ProductInfo;
 import org.ovirt.engine.api.model.Template;
 import org.ovirt.engine.api.model.Templates;
+import org.ovirt.engine.api.model.Version;
 
 public class OVirtEngineCloud extends Cloud
 {
@@ -40,7 +47,7 @@ public class OVirtEngineCloud extends Cloud
     {
         if(this.client == null)
         {
-            this.client = new OVirtEngineClient(this.url, this.username, this.password);
+            this.client = new OVirtEngineClient(this.url, this.username, this.password, this.name);
         }
         return this.client;
     }
@@ -60,6 +67,11 @@ public class OVirtEngineCloud extends Cloud
         return password;
     }
     
+    public List<Template> getTemplates() throws Exception
+    {
+        return this.getClient().get("templates", Templates.class).getTemplates();
+    }
+    
     @Override
     public Collection<PlannedNode> provision(Label label, int excessWorkload)
     {
@@ -75,10 +87,13 @@ public class OVirtEngineCloud extends Cloud
         return false;
     }
     
-    private Collection<Template> getAvaiableTemplates() throws IOException, JAXBException, OVirtEngineException
+    public static OVirtEngineCloud get()
     {
-        OVirtEngineClient cl = this.getClient();
-        return cl.get("templates", Templates.class).getTemplates();
+        return Hudson.getInstance().clouds.get(OVirtEngineCloud.class);
+    }
+    public static OVirtEngineCloud get(String name)
+    {
+        return (OVirtEngineCloud) Hudson.getInstance().clouds.getByName(name);
     }
     
     @Extension
@@ -90,6 +105,18 @@ public class OVirtEngineCloud extends Cloud
         {
             return "oVirt Engine";
         }
+        
+        public FormValidation doCheckName(@QueryParameter("name") final String name)
+        {
+            String regex = "[._a-z0-9]+";
+            Matcher m = Pattern.compile(regex, Pattern.CASE_INSENSITIVE).matcher(name);
+            if(m.matches())
+            {
+                return FormValidation.ok();
+            }
+            return FormValidation.error("Cloud name allows only: "+regex);
+        }
+        
         public FormValidation doTestConnection(
                 @QueryParameter("url") final String url,
                 @QueryParameter("username") final String username,
@@ -97,15 +124,38 @@ public class OVirtEngineCloud extends Cloud
         {
             try
             {
-                OVirtEngineClient client = new OVirtEngineClient(url, username, password);
-                client.isConnective();
-                return FormValidation.ok("Success");
+                OVirtEngineClient client = new OVirtEngineClient(url, username, password, null);
+                API api = client.get(API.class);
+                ProductInfo info = api.getProductInfo();
+                Version version = info.getVersion();
+                String msg = String.format(
+                        "Successfully connected to: %s (%d.%d)",
+                        info.getName(), version.getMajor(), version.getMinor());
+                return FormValidation.ok(msg);
             } catch (Exception e)
             {
                 OVirtEnginePlugin.getLogger().log(Level.SEVERE, null, e);
                 return FormValidation.error("Client error <"+e.getClass().getName()+">: "+e.getMessage());
             }
         }
+    }
+    
+        public OVirtEngineSlave createSlave(Template tmp) throws Exception
+        {
+            return OVirtEngineSlave.provision(client, tmp);
+        }
+        
+        public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String templateName) throws Exception {
+        //checkPermission(PROVISION);
+        if(templateName == null) {
+            sendError("The 'templateName' query parameter is missing",req,rsp);
+            return;
+        }
+        Template tmp = client.getTemplate(templateName);
+        
+        OVirtEngineSlave node = createSlave(tmp);
+        Hudson.getInstance().addNode(node);
+        rsp.sendRedirect2(req.getContextPath()+"/computer/"+node.getNodeName());
     }
     
 }
