@@ -1,7 +1,7 @@
 package org.jenkinsci.plugins;
 
 import hudson.model.Hudson;
-import java.io.StringReader;
+import java.io.InputStream;
 import java.io.StringWriter;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -32,8 +32,11 @@ import org.apache.commons.lang.WordUtils;
 import org.ovirt.engine.api.model.API;
 import org.ovirt.engine.api.model.Action;
 import org.ovirt.engine.api.model.CPU;
+import org.ovirt.engine.api.model.Cluster;
+import org.ovirt.engine.api.model.Clusters;
 import org.ovirt.engine.api.model.GuestInfo;
 import org.ovirt.engine.api.model.IP;
+import org.ovirt.engine.api.model.ObjectFactory;
 import org.ovirt.engine.api.model.Status;
 import org.ovirt.engine.api.model.Template;
 import org.ovirt.engine.api.model.Templates;
@@ -42,9 +45,38 @@ import org.ovirt.engine.api.model.VMs;
 import org.ovirt.engine.api.model.VmStates;
 
 
-class OVirtEngineException extends Exception {}
-class OvirtEngineRequestFailed extends OVirtEngineException {}
-class OVirtEngineTimeout extends OVirtEngineException {}
+class OVirtEngineException extends Exception 
+{
+
+    public OVirtEngineException(String message) {
+        super(message);
+    }
+}
+class OvirtEngineRequestFailed extends OVirtEngineException
+{
+
+    public OvirtEngineRequestFailed(String message) {
+        super(message);
+    }
+}
+class OVirtEngineTimeout extends OVirtEngineException
+{
+
+    public OVirtEngineTimeout(int time) {
+        super("Timeout expired: "+String.valueOf(time));
+    }
+    
+}
+
+
+class OVirtEngineEntityNotFound extends OvirtEngineRequestFailed
+{
+
+    public OVirtEngineEntityNotFound(String message) {
+        super(message);
+    }
+    
+}
 
 
 public class OVirtEngineClient
@@ -62,8 +94,10 @@ public class OVirtEngineClient
     private static final String API_PATH = "";
     private static final String TEMPLATES_PATH = "templates";
     private static final String VMS_PATH = "vms";
+    private static final String CLUSTERS_PATH = "clusters";
     private static final String TEMPLATE_PATH = TEMPLATES_PATH+"/{id}";
     private static final String VM_PATH = VMS_PATH+"/{id}";
+    private static final String CLUSTER_PATH = CLUSTERS_PATH+"/{id}";
     
     private static final Map<Class<?>, String> OBJECT_LOCATORS = new HashMap<Class<?>, String>();
     static  {
@@ -72,6 +106,8 @@ public class OVirtEngineClient
         OBJECT_LOCATORS.put(Template.class, TEMPLATE_PATH);
         OBJECT_LOCATORS.put(VMs.class, VMS_PATH);
         OBJECT_LOCATORS.put(VM.class, VM_PATH);
+        OBJECT_LOCATORS.put(Clusters.class, CLUSTERS_PATH);
+        OBJECT_LOCATORS.put(Cluster.class, CLUSTER_PATH);
     }
     
     private static final int WAIT_TIMEOUT = 300000; // ms
@@ -140,32 +176,44 @@ public class OVirtEngineClient
         return this.context;
     }
     
-    private <T>T unmarshal(String in, Class<T> cls) throws JAXBException
+    private <T>T unmarshal(InputStream in, Class<T> cls) throws JAXBException
     {
-        OVirtEnginePlugin.getLogger().fine(in);
+        //OVirtEnginePlugin.getLogger().fine(in);
         //Unmarshaller u = this.getContext().createUnmarshaller();
         Unmarshaller u = JAXBContext.newInstance(cls).createUnmarshaller();
-        JAXBElement<T> elm = (JAXBElement<T>)u.unmarshal(new StreamSource(new StringReader(in)), cls);
+        JAXBElement<T> elm = (JAXBElement<T>)u.unmarshal(new StreamSource(in), cls);
         return elm.getValue();
     }
 
-    private String marshal(Object obj) throws JAXBException
+    public String marshal(Object obj) throws Exception
     {
-        Marshaller m = this.getContext().createMarshaller();
+        Marshaller m = JAXBContext.newInstance(obj.getClass()).createMarshaller();
         m.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
         StringWriter out = new StringWriter();
-        m.marshal(obj, out);
+        ObjectFactory fact = new ObjectFactory();
+        String name = obj.getClass().getSimpleName();
+        name = WordUtils.capitalizeFully(name);
+        Method method = fact.getClass().getMethod("create"+name, obj.getClass());
+        JAXBElement elm = (JAXBElement) method.invoke(fact, obj);
+        m.marshal(elm, out);
         return out.toString();
     }
 
     private void checkRespond(HttpMethodBase method) throws Exception
     {
         int status = method.getStatusCode();
-        String body = method.getResponseBodyAsString();
-        if (status > 300) // at time writing, api doesn't support redirecting
+        if (status >= 300) // at time writing, api doesn't support redirecting
         {
+            String body = method.getResponseBodyAsString();
             Logger.getLogger(OVirtEngineClient.class.getName()).log(Level.SEVERE, body);
-            throw new OvirtEngineRequestFailed(); // TODO: add some inforamtion
+            switch (status)
+            {
+                case 404:
+                {
+                    throw new OVirtEngineEntityNotFound(body);
+                }
+                default: throw new OvirtEngineRequestFailed(body); // TODO: add some inforamtion
+            }
         }
     }
     
@@ -177,8 +225,8 @@ public class OVirtEngineClient
             get.addRequestHeader(HEADER_ACCEPT, CONTENT_TYPE);
             this.getClient().executeMethod(get);
             this.checkRespond(get);
-            String out = get.getResponseBodyAsString();
-            return this.unmarshal(out, cls);
+            //String out = get.getResponseBodyAsString();
+            return this.unmarshal(get.getResponseBodyAsStream(), cls);
         }
         finally
         {
@@ -231,9 +279,15 @@ public class OVirtEngineClient
         }
     }
     
+    public void delete(Object obj) throws Exception
+    {
+        delete(composePath(obj));
+    }
+    
     public <T>T query(String path, String q, Class<T> cls) throws Exception
     {
-        String query = URIUtil.encodeQuery(path + "?search=\"" + q + "\"");
+        String query = path + "?search=" + q; // TODO: here should be escaped query
+        //String query = path + "?search=" + URIUtil.encodeQuery(q);
         return this.get(query, cls);
     }
     
@@ -256,8 +310,13 @@ public class OVirtEngineClient
 
     public <T>T getElement(String name, Class<?> cls) throws Exception
     {
-        Object elms = this.query(OBJECT_LOCATORS.get(cls), "name="+name, cls);
-        return  (T) ((List) getAttribute(cls.getSimpleName(), elms)).get(0);        
+        Object elms = this.query(OBJECT_LOCATORS.get(cls), "name%3D"+name, cls);
+        List col = (List)getAttribute(cls.getSimpleName(), elms);
+        if (col.isEmpty())
+        {
+            throw new OVirtEngineEntityNotFound(name);
+        }
+        return (T) col.get(0);
     }
     
     public List getCollection(Class<?> cls) throws Exception
@@ -296,21 +355,35 @@ public class OVirtEngineClient
         this.put(composePath(obj), obj);
     }
     
-    public void deleteElement(Object obj) throws Exception
-    {
-        this.put(composePath(obj), obj);
-    }
-
     public VM getVm(VM vm) throws Exception
     {
         return this.get(composePath(VM_PATH, vm), VM.class);
     }
     
+    public void createElement(Class<?> collection, Object obj) throws Exception
+    {
+        post(OBJECT_LOCATORS.get(collection), obj);
+    }
+    
+    @SuppressWarnings("SleepWhileInLoop")
     public VM createVm(VM vm) throws Exception
     {
-        postElement(vm);
-        Thread.sleep(2000);
-        vm = getElement(vm.getName(), VM.class);
+        Cluster cl = vm.getCluster();
+        if (cl == null)
+        {
+            cl = (Cluster) getCollection(Clusters.class).get(0);
+        }
+        vm.setCluster(cl);
+        createElement(VMs.class, vm);
+        /*for (VM a: (List<VM>)getCollection(VMs.class))
+        {
+            if (a.getName().equals(vm.getName()))
+            {
+                vm = a;
+                break;
+            }
+        }*/
+        vm = getElement(vm.getName(), VMs.class);
         return waitForStatus(vm, "down", WAIT_TIMEOUT);
     }
     
@@ -359,12 +432,13 @@ public class OVirtEngineClient
         {
             Object got = getElement(obj);
             Status st = getAttribute("status", got);
+            OVirtEnginePlugin.getLogger().fine(st.getState());
             if(st.getState().equals(status))
             {
                 return (T) got;
             }
         }
-        throw new OVirtEngineTimeout();
+        throw new OVirtEngineTimeout(timeout);
     }
     
     private static <T>T getAttribute(String name, Object obj) throws Exception

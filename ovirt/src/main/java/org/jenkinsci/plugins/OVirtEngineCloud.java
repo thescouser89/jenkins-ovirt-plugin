@@ -145,7 +145,8 @@ public class OVirtEngineCloud extends Cloud
             return OVirtEngineSlave.provision(client, tmp);
         }
         
-        public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String templateName) throws Exception {
+        public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String templateName) throws Exception
+        {
         //checkPermission(PROVISION);
         if(templateName == null) {
             sendError("The 'templateName' query parameter is missing",req,rsp);

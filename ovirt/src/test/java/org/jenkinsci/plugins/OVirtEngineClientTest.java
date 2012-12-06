@@ -1,5 +1,8 @@
 package org.jenkinsci.plugins;
 
+import java.lang.reflect.Method;
+import java.lang.Object;
+import java.lang.Class;
 import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
@@ -93,4 +96,35 @@ public class OVirtEngineClientTest
             System.out.println("Template name: " + vm.getName());
         }
     }
+    
+    @Test
+    public void testMarshall() throws Exception
+    {
+        VM vm = new VM();
+        vm.setName("mashine");
+        Template tm = new Template();
+        tm.setName("rhel6");
+        vm.setTemplate(tm);
+        System.out.println(client.marshal(vm));
+    
+    }
+    
+    @Test
+    public void testCreateVm() throws Exception
+    {
+        String machine = "machine";
+        VM vm;
+        try
+        {
+            vm = client.getElement(machine, VMs.class);
+            client.delete(vm);
+        }catch (OVirtEngineEntityNotFound ex){}
+        vm = new VM();
+        vm.setName(machine);
+        Template tm = new Template();
+        tm.setName("rhel");
+        vm.setTemplate(tm);
+        client.createVm(vm);
+    }
+
 }
