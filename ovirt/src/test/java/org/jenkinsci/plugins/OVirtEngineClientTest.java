@@ -1,10 +1,12 @@
 package org.jenkinsci.plugins;
 
-import java.lang.reflect.Method;
-import java.lang.Object;
-import java.lang.Class;
+import java.io.IOException;
 import java.util.List;
+import java.util.logging.FileHandler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.ovirt.engine.api.model.Template;
 import org.ovirt.engine.api.model.Templates;
@@ -21,6 +23,15 @@ public class OVirtEngineClientTest
     private OVirtEngineClient client;
     
     private static final String BLANK_TEMPLATE = "00000000-0000-0000-0000-000000000000";
+    
+    @BeforeClass
+    public static void setUpClass() throws IOException
+    {
+        Logger log = OVirtEnginePlugin.getLogger();
+        log.setLevel(Level.ALL);
+        //log.addHandler(new FileHandler(PATH_TO_LOG));
+        log.addHandler(new FileHandler("/tmp/a.log"));
+    }
     
     @Before
     public void setUp()
@@ -108,23 +119,42 @@ public class OVirtEngineClientTest
         System.out.println(client.marshal(vm));
     
     }
-    
+/*
     @Test
+    @SuppressWarnings("SleepWhileInLoop")
     public void testCreateVm() throws Exception
     {
-        String machine = "machine";
+        String machine = "masina";
         VM vm;
         try
         {
             vm = client.getElement(machine, VMs.class);
-            client.delete(vm);
+            client.deleteVm(vm.getName());
         }catch (OVirtEngineEntityNotFound ex){}
         vm = new VM();
         vm.setName(machine);
         Template tm = new Template();
-        tm.setName("rhel");
+        //tm.setName("rhel");
+        tm.setName("jenkins-slave");
         vm.setTemplate(tm);
-        client.createVm(vm);
-    }
+        vm = client.createVm(vm);
+        VM vmToStart = new VM();
+        vmToStart.setId(vm.getId());
+        client.startVm(vmToStart, true);
+        for( String ip : client.getVmIPs(machine))
+        {
+            System.out.println("vm ip: " + ip);
+        }
+        client.stopVm(vmToStart, true);
+        client.deleteVm(machine);
+    }*/
 
+    /*
+    @Test
+    public void testLoadStrategies() throws Exception
+    {
+        ExtensionList<OVirtEngineProvisionStrategy> list = Jenkins.getInstance().getExtensionList(OVirtEngineProvisionStrategy.class);
+        System.out.println("Extension list: " + list.toString());
+    }
+*/
 }

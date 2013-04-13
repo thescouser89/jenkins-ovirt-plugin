@@ -1,4 +1,9 @@
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+<j:jelly xmlns:j="jelly:core"
+         xmlns:st="jelly:stapler"
+         xmlns:d="jelly:define"
+         xmlns:l="/lib/layout"
+         xmlns:t="/lib/hudson"
+         xmlns:f="/lib/form">
   <!--
     This jelly script is used for per-project configuration.
 
@@ -12,15 +17,67 @@
   <f:entry title="Unique cloud name" field="name">
     <f:textbox />
   </f:entry>
+
   <f:entry title="Engine API URL" field="url">
     <f:textbox />
   </f:entry>
+
   <f:entry title="Username" field="username">
     <f:textbox />
   </f:entry>
+
   <f:entry title="Password" field="password">
     <f:password />
   </f:entry>
+
   <f:validateButton title="Test Connection" progress="Testing..."
                     method="testConnection" with="url,username,password" />
+
+  <f:dropdownList name="cloud.strategy" title="Provision Strategy">
+    <j:forEach var="s" items="${descriptor.strategies}">
+      <j:if test="${s != null}">
+        <f:dropdownListBlock value="${s.clazz.name}"
+                             name="${s.displayName}"
+                             selected="${it.strategy.descriptor==s}"
+                             title="${s.displayName}">
+          <j:set var="descriptor" value="${s}"/>
+          <j:set var="instance"
+                 value="${it.strategy.descriptor==s ? it.strategy : null}"/>
+          <tr><td>
+            <input type="hidden" name="stapler-class" value="${s.clazz.name}" />
+          </td></tr>
+          <st:include from="${s}" page="${s.configPage}" optional="true" class="${s.clazz}"/>
+        </f:dropdownListBlock>
+      </j:if>
+    </j:forEach>
+  </f:dropdownList>
+
+<!--
+  <f:invisibleEntry field="launcher">
+    <st:include from="${descriptor.launcher}" page="${descriptor.launcher.configPage}" optional="true"/>
+  </f:invisibleEntry>
+-->
+  <f:dropdownList name="cloud.launcher" title="Launch method">
+    <j:forEach var="l" items="${descriptor.launchers}">
+      <j:if test="${l != null}">
+        <f:dropdownListBlock value="${l.clazz.name}"
+                             name="${l.displayName}"
+                             selected="${it.launcher.descriptor==l}"
+                             title="${l.displayName}">
+          <j:set var="descriptor" value="${l}"/>
+          <j:set var="instance"
+                 value="${it.launcher.descriptor==l ? it.launcher : null}"/>
+          <tr><td>
+            <input type="hidden" name="stapler-class" value="${l.clazz.name}" />
+          </td></tr>
+          <st:include from="${l}" page="${l.configPage}" optional="true"/>
+        </f:dropdownListBlock>
+      </j:if>
+    </j:forEach>
+  </f:dropdownList>
+<!--
+  <f:descriptorList field="launcher"
+                    descriptors="${descriptor.launchers}"
+                    forceRowSet="true" />
+-->
 </j:jelly>

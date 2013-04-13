@@ -4,21 +4,15 @@
  */
 package org.jenkinsci.plugins;
 
-import hudson.model.TaskListener;
 import hudson.slaves.ComputerLauncher;
-import hudson.slaves.SlaveComputer;
-import java.io.IOException;
+import java.util.logging.Logger;
 
 /**
  *
  * @author lukyn
  */
-public class OVirtEngineLauncher extends ComputerLauncher {
-
-    @Override
-    public void launch(SlaveComputer computer, TaskListener listener) throws IOException, InterruptedException {
-        super.launch(computer, listener);
-    }
+public abstract class OVirtEngineLauncher extends ComputerLauncher {
     
+    protected static final Logger LOGGER = OVirtEnginePlugin.getLogger();
     
 }

@@ -1,0 +1,30 @@
+<j:jelly xmlns:j="jelly:core"
+         xmlns:st="jelly:stapler"
+         xmlns:d="jelly:define"
+         xmlns:l="/lib/layout"
+         xmlns:t="/lib/hudson"
+         xmlns:f="/lib/form">
+
+<f:invisibleEntry field="launcher">
+  <f:dropdownList name="launcher" title="Launch method">
+    <j:forEach var="d" items="${h.getComputerLauncherDescriptors()}">
+      <j:if test="${d.clazz.simpleName != 'OVirtEngineLauncher'}">
+        <f:dropdownListBlock value="${d.clazz.name}" name="${d.displayName}"
+                             selected="${it.launcher.descriptor==d}"
+                             title="${d.displayName}">
+
+          <j:set var="descriptor" value="${d}"/>
+          <j:set var="instance"
+                 value="${it.launcher.descriptor==d ? it.launcher : null}"/>
+
+          <f:invisibleEntry>
+            <input type="hidden" name="stapler-class" value="${d.clazz.name}" />
+          </f:invisibleEntry>
+
+          <st:include from="${d}" page="${d.configPage}" optional="true"/>
+        </f:dropdownListBlock>
+      </j:if>
+    </j:forEach>
+  </f:dropdownList>
+</f:invisibleEntry>
+</j:jelly>

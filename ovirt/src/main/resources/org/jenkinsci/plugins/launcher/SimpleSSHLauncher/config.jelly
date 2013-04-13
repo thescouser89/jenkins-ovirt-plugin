@@ -1,0 +1,29 @@
+<j:jelly xmlns:j="jelly:core"
+         xmlns:st="jelly:stapler"
+         xmlns:d="jelly:define"
+         xmlns:l="/lib/layout"
+         xmlns:t="/lib/hudson"
+         xmlns:f="/lib/form">
+
+  <f:entry title="User name" field="username">
+    <f:textbox default="root" />
+  </f:entry>
+  
+  <f:entry title="Password" field="password">
+    <f:password />
+  </f:entry>
+  
+  <f:advanced>
+      
+    <f:entry title="SSH port" field="port">
+      <f:textbox default="22"/>
+    </f:entry>
+
+    <f:entry title="Url to java installer" field="urlToJavaInstaller">
+      <f:textbox default="http://download.oracle.com/otn-pub/java/jdk/6u29-b11/jdk-6u29-linux-i586.bin"/>
+    </f:entry>
+    
+  </f:advanced>
+  
+
+</j:jelly>
